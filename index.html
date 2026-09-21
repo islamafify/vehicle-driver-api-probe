@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light" />
+    <title>Vehicle Driver — Web API Probe</title>
+    <style>
+      :root { --green:#07885d; --ink:#17231f; --muted:#63726c; --line:#d9e2de; --paper:#fff; --bg:#f2f7f4; }
+      * { box-sizing:border-box; }
+      body { margin:0; min-height:100vh; background:var(--bg); color:var(--ink); font-family:Tahoma, Arial, sans-serif; }
+      main { width:min(760px, calc(100% - 32px)); margin:44px auto; }
+      header { border-inline-start:5px solid var(--green); padding:2px 16px; margin-bottom:24px; }
+      h1 { font-size:1.5rem; margin:0 0 5px; } p { line-height:1.65; }
+      .card { background:var(--paper); border:1px solid var(--line); border-radius:16px; padding:22px; box-shadow:0 10px 24px #1231; }
+      label { display:block; font-weight:700; margin-top:14px; }
+      input { width:100%; margin-top:7px; padding:12px; border:1px solid #b8c8c0; border-radius:9px; font:inherit; direction:ltr; text-align:left; }
+      .note { color:var(--muted); font-size:.91rem; margin:12px 0 0; }
+      .actions { display:flex; flex-wrap:wrap; gap:10px; margin-top:20px; }
+      button, a.button { appearance:none; border:0; border-radius:9px; padding:11px 14px; background:var(--green); color:#fff; font:inherit; cursor:pointer; text-decoration:none; }
+      button.secondary { background:#e9f0ec; color:#173328; }
+      button:disabled { opacity:.5; cursor:wait; }
+      #status { margin-top:20px; padding:13px; border-radius:9px; background:#eff5f1; color:#264638; white-space:pre-wrap; }
+      #result { width:100%; min-height:240px; margin-top:12px; padding:14px; border:1px solid var(--line); border-radius:9px; background:#10231c; color:#d4f9e9; direction:ltr; text-align:left; font:13px/1.5 ui-monospace, SFMono-Regular, Menlo, monospace; }
+      .warning { border-inline-start:3px solid #d99414; padding-inline-start:10px; margin-top:18px; color:#64501f; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h1>تجربة API لنظام Vehicle Driver</h1>
+        <p class="note">لا تدخل كلمة المرور هنا. هذا النموذج لا يخزنها ولا يرسلها.</p>
+      </header>
+      <section class="card" aria-label="فحص الجلسة والمهام">
+        <p>1) افتح بوابة الشركة وسجّل الدخول بالحساب الرسمي. 2) ارجع لهذه الصفحة وأدخل رقم الهاتف أو حساب السائق كما هو مُسجّل في النظام. 3) جرّب الطلب.</p>
+        <a class="button" href="https://w3m.huawei.com" target="_blank" rel="noopener">فتح بوابة تسجيل الدخول</a>
+
+        <label for="account">رقم الهاتف / حساب السائق</label>
+        <input id="account" autocomplete="username" placeholder="مثال: 13800000000" />
+        <p class="note">سيُرسل هذا الحقل فقط ضمن جسم طلب المهام، كما يفعل التطبيق الأصلي.</p>
+
+        <div class="actions">
+          <button type="button" data-action="profile">فحص ملف السائق</button>
+          <button type="button" data-action="current">المهام الحالية</button>
+          <button type="button" data-action="history">سجل المهام</button>
+          <button type="button" class="secondary" id="clear">مسح النتيجة</button>
+        </div>
+        <p class="warning">لو ظهر خطأ CORS أو لم تُرسل الكوكيز، فالمتصفح ممنوع من استخدام جلسة هذا النظام؛ هذا لا يعني أن الحساب خطأ.</p>
+        <div id="status" role="status">جاهز للتجربة.</div>
+        <textarea id="result" readonly aria-label="نتيجة الطلب">لم يتم إرسال أي طلب بعد.</textarea>
+      </section>
+    </main>
+    <script>
+      const proxy = 'https://w3m.huawei.com/mcloud/umag/ProxyForText/';
+      const account = document.querySelector('#account');
+      const status = document.querySelector('#status');
+      const result = document.querySelector('#result');
+      const buttons = [...document.querySelectorAll('[data-action]')];
+
+      const endpoints = {
+        profile: {
+          path: 'vehicle_profile/driverLogin/driverLoginController/getDriverArchivesByTelephone',
+          body: () => ({ telephone: account.value.trim(), language: 'en' })
+        },
+        current: {
+          path: 'vehicle_dispatch/dispatchOrderTask/services/order/useVehicle/queryOrderTaskList',
+          body: () => ({ queryType: '1', phoneNumber: account.value.trim(), language: 'en', pageVO: { curPage: 1, pageSize: 20 } })
+        },
+        history: {
+          path: 'vehicle_dispatch/dispatchOrderTask/services/order/useVehicle/queryOrderTaskList',
+          body: () => ({ queryType: '2', phoneNumber: account.value.trim(), language: 'en', pageVO: { curPage: 1, pageSize: 20 } })
+        }
+      };
+
+      async function callApi(action) {
+        if (!account.value.trim()) { status.textContent = 'اكتب رقم الهاتف أو حساب السائق أولًا.'; return; }
+        const request = endpoints[action];
+        buttons.forEach(button => button.disabled = true);
+        status.textContent = 'جارٍ إرسال الطلب…';
+        result.value = 'POST ' + proxy + request.path + '\n\n' + JSON.stringify(request.body(), null, 2);
+        try {
+          const response = await fetch(proxy + request.path, {
+            method: 'POST',
+            credentials: 'include',
+            headers: { 'content-type': 'application/json;charset=UTF-8', 'accept': 'application/json' },
+            body: JSON.stringify(request.body())
+          });
+          const raw = await response.text();
+          status.textContent = `تم استلام رد HTTP ${response.status}.`;
+          try { result.value = JSON.stringify(JSON.parse(raw), null, 2); } catch { result.value = raw || '(رد فارغ)'; }
+        } catch (error) {
+          status.textContent = 'فشل الطلب من المتصفح.';
+          result.value = `${error.name}: ${error.message}\n\nأكثر الأسباب احتمالًا: لم تُنشأ جلسة SSO في المتصفح، أو أن CORS يمنع الموقع من إرسال الطلب/قراءة الرد.`;
+        } finally { buttons.forEach(button => button.disabled = false); }
+      }
+
+      buttons.forEach(button => button.addEventListener('click', () => callApi(button.dataset.action)));
+      document.querySelector('#clear').addEventListener('click', () => { status.textContent = 'جاهز للتجربة.'; result.value = 'لم يتم إرسال أي طلب بعد.'; });
+    </script>
+  </body>
+</html>
