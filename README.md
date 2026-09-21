@@ -1,2 +1,13 @@
-# vehicle-driver-api-probe
-Browser API compatibility probe for Vehicle Driver.
+# Vehicle Driver Web API Probe
+
+ابدأ خادمًا محليًا من مجلد المشروع:
+
+```bash
+python3 -m http.server 8080 -d vehicle-web-poc
+```
+
+ثم افتح `http://localhost:8080`.
+
+سجّل الدخول أولًا في `https://w3m.huawei.com` في المتصفح نفسه، ثم ارجع لصفحة التجربة وأدخل رقم الهاتف أو حساب السائق.
+
+هذه الصفحة لا تجمع أو تخزّن كلمة مرور. وهي تختبر فقط ما إذا كان متصفحك يستطيع إرسال كوكيز جلسة الشركة إلى طلبات Vehicle Driver وقراءة الرد. إذا حدث خطأ CORS أو لم تصل الكوكيز، فسيحتاج الحل النهائي لتطبيق iOS/Flutter أو تكامل رسمي من الشركة.
